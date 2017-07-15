@@ -1,8 +1,9 @@
 var fs = require("fs");
 var inquirer = require("inquirer");
 
-var clozeCards = ("./ClozeCard.js");
-var basicCards = ("./BasicCard.js");
+var ClozeDeletion = require("./ClozeDeletion");
+var BasicFlashcard = require("./BasicFlashcard");
+var cardArray = [];
 
 inquirer.prompt([{
     name: "command",
@@ -22,6 +23,8 @@ inquirer.prompt([{
 });
 
 function addCards() {
+    var question = "";
+    var answer = "";
     inquirer.prompt([{
         name: "cardType",
         message: "What kind of card would you like to make?",
@@ -32,6 +35,7 @@ function addCards() {
             name: "cloze-flashcard"
         }]
     }]).then(function(answer) {
+        console.log(answer);
         if (answer.cardType === "basic-flashcard") {
             inquirer.prompt([{
                 name: "front",
@@ -43,24 +47,28 @@ function addCards() {
                     } else {
                         return true;
                     }
-                },
-                name: "back",
-                message: "What is the answer?",
-                validate: function(input) {
-                    if (input === "") {
-                        console.log("You need to input an answer");
-                        return false;
-                    } else {
-                        return true;
-                    }
                 }
-            }]).then(function(answers) {
-                var newBasic = new basicCards(answers.front, answers.back);
-                newBasic.create();
-
-                next();
-            })
+            }]).then(function(answer) {
+                question = answer.front;
+                inquirer.prompt([{
+                    name: "back",
+                    message: "What is the answer?",
+                    validate: function(input) {
+                        if (input === "") {
+                            console.log("You need to input an answer");
+                            return false;
+                        } else {
+                            return true;
+                        }
+                    }
+                }]).then(function(answer) {
+                    var newBasic = new BasicFlashcard(question, answer.back);
+                    cardArray.push(newBasic);
+                    next();
+                });
+            });
         } else if (answer.cardType === "cloze-flashcard") {
+            var fullText = "";
             inquirer.prompt([{
                 name: "information",
                 message: "What is the full text?",
@@ -71,28 +79,33 @@ function addCards() {
                     } else {
                         return true;
                     }
-                },
-                name: "hidden",
-                message: "What is the hidden portion of your information?",
-                validate: function(input) {
-                    if (input === "") {
-                        console.log("Please input the hidden portion of your flashcard.");
-                        return false;
-                    } else {
-                        return true;
+                }
+            }]).then(function(answer) {
+                fullText = answer.information;
+                inquirer.prompt([{
+                    name: "hidden",
+                    message: "What is the hidden portion of your information?",
+                    validate: function(input) {
+                        if (input === "") {
+                            console.log("Please input the hidden portion of your flashcard.");
+                            return false;
+                        } else {
+                            return true;
+                        }
                     }
-                }
-            }]).then(function(answers) {
-                var text = answers.text;
-                var cloze = answers.cloze;
-                if (text.includes(cloze)) {
-                    var newHidden = new ClozeCard(information, cloze);
-                    newHidden.create();
-                    next();
-                } else {
-                    console.log("The hidden part you provided is not in the information. Please try again.");
-                    addCards();
-                }
+                }]).then(function(answers) {
+                    console.log(answers);
+                    var hidden = answers.hidden;
+                    if (fullText.includes(hidden)) {
+                        var newHidden = new ClozeDeletion(fullText, hidden);
+                        cardArray.push(newHidden);
+                        next();
+                    } else {
+                        console.log("The hidden part you provided is not in the information. Please try again.");
+                        addCards();
+                    }
+
+                });
             });
         }
     });
@@ -115,39 +128,39 @@ var next = function() {
         if (answer.next === "add-flashcard") {
             addCards();
         } else if (answer.next === "show-flashcards") {
-            showCards();
+            showCards(0);
         } else if (answer.next === "nothing") {
             return;
         }
-    })
+    });
 };
 
-var showCards = function() {
-    question = array[index];
-    var parsedQuestion = JSON.parse(question);
+var showCards = function(index) {
+    card = cardArray[index];
+
     var questionText;
     var correctResponse;
 
-    if (parsedQuestion.type === "basic") {
-        questionText = parsedQuestion.front;
-        correctResponse = parsedQuestion.back;
-    } else if (parsedQuestion.type === "cloze") {
-        questionText = parsedQuestion.clozeDeleted;
-        correctResponse = parsedQuestion.cloze;
+    if (card.type === "basic") {
+        questionText = card.front;
+        correctResponse = card.back;
+    } else if (card.type === "cloze") {
+        questionText = card.clozeDeleted;
+        correctResponse = card.cloze;
     }
     inquirer.prompt([{
         name: "response",
         message: questionText
-    }]).then(function(answers) {
+    }]).then(function(answer) {
         if (answer.response === correctResponse) {
             console.log("Correct!")
-            if (index < array.length - 1) {
-                showCards(array, index + 1);
+            if (index < cardArray.length - 1) {
+                showCards(index + 1);
             }
         } else {
             console.log("Wrong!");
-            if (index < array.length - 1) {
-                showCards(array, index + 1)
+            if (index < cardArray.length - 1) {
+                showCards(index + 1)
             }
         }
 

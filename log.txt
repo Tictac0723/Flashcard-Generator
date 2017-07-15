@@ -1,0 +1,1 @@
+{"front":{"front":"ques"},"back":{"back":"ans"},"type":"basic"};{"front":{"front":"ques"},"back":{"back":"ans"},"type":"basic"};
